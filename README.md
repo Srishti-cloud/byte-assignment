@@ -101,9 +101,12 @@ This is structured as a practical starting point for a real delivery pipeline.
 ### Included
 
 - Prometheus scrape configuration in `monitoring/prometheus.yml`
-- Grafana dashboard template in `monitoring/grafana-dashboard.json`
+- Application dashboard in `monitoring/grafana-dashboard.json`
+- Infrastructure and logs dashboard in `monitoring/infrastructure-dashboard.json`
 - Loki/Promtail setup for centralized log collection
 - Node exporter and Postgres exporter integration in Docker Compose
+
+Import both JSON files in Grafana from **Dashboards -> New -> Import**. Select the configured Prometheus data source for the application and infrastructure panels, and the Loki data source for the logs panel. Prometheus and Loki are available locally at `http://localhost:9090` and `http://localhost:3100`.
 
 ### Operational intent
 
