@@ -38,7 +38,7 @@ The main challenge was balancing realism with time. It is easy to go too far int
 - full PostgreSQL integration into the app layer
 - structured logs and metrics instrumentation in the backend
 - separate environment management for dev, staging, and prod
-- actual cloud deployment automation with real credentials and target environments
+- replace the example staging and production workflow steps with deployment automation for the actual AWS environments
 - alerting rules and retention policies for logs and backups
 
 This keeps the project honest: it is complete as a thoughtful assignment package, but it is still intentionally designed as a strong starting point rather than a fully production-operated production system.
