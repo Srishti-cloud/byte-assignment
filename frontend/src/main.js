@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:4000/api';
+const API_BASE_URL = window.location.origin + '/api';
 
 const form = document.getElementById('item-form');
 const list = document.getElementById('items-list');

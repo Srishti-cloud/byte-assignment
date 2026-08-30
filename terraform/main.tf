@@ -131,6 +131,13 @@ resource "aws_security_group" "app" {
   vpc_id = aws_vpc.main.id
 
   ingress {
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lb.id]
+  }
+
+  ingress {
     from_port       = 4000
     to_port         = 4000
     protocol        = "tcp"
@@ -180,7 +187,7 @@ resource "aws_db_instance" "postgres" {
   identifier             = "${var.project_name}-postgres"
   allocated_storage      = 20
   engine                 = "postgres"
-  engine_version         = "16.1"
+  engine_version         = "16.3"
   instance_class         = var.db_instance_class
   db_name                = var.db_name
   username               = var.db_username
@@ -209,11 +216,36 @@ resource "aws_instance" "app" {
 
   user_data = <<-EOT
               #!/bin/bash
+              set -eux
+
               yum update -y
               yum install -y docker
               systemctl enable docker
               systemctl start docker
-              docker run -d --name backend -p 4000:4000 -e PORT=4000 public.ecr.aws/docker/library/node:20-alpine node -e "console.log('placeholder')"
+
+              echo "${var.docker_password}" | docker login --username "${var.docker_username}" --password-stdin
+              docker network create app-network || true
+
+              DB_URL="postgres://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.address}:5432/${var.db_name}"
+
+              docker rm -f backend frontend || true
+
+              docker run -d \
+                --name backend \
+                --restart unless-stopped \
+                --network app-network \
+                -p 4000:4000 \
+                -e PORT=4000 \
+                -e NODE_ENV=production \
+                -e DATABASE_URL="$${DB_URL}" \
+                "${var.docker_username}/byte-assignment-backend:${var.docker_image_tag}"
+
+              docker run -d \
+                --name frontend \
+                --restart unless-stopped \
+                --network app-network \
+                -p 80:80 \
+                "${var.docker_username}/byte-assignment-frontend:${var.docker_image_tag}"
               EOT
 
   tags = {
@@ -232,19 +264,23 @@ resource "aws_lb" "main" {
 }
 
 resource "aws_lb_target_group" "app" {
-  name     = "${var.project_name}-tg"
-  port     = 4000
+  name     = "byte-assignment-tg-v2"
+  port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id
 
   health_check {
     enabled             = true
-    path                = "/health"
+    path                = "/"
     matcher             = "200"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 2
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -262,5 +298,5 @@ resource "aws_lb_listener" "http" {
 resource "aws_lb_target_group_attachment" "app" {
   target_group_arn = aws_lb_target_group.app.arn
   target_id        = aws_instance.app.id
-  port             = 4000
+  port             = 80
 }

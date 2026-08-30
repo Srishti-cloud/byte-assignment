@@ -71,3 +71,22 @@ variable "ami_id" {
   type        = string
   default     = "ami-0c02fb55956c7d316"
 }
+
+variable "docker_username" {
+  description = "Docker Hub username used for app images"
+  type        = string
+  default     = "srishtisingh13"
+}
+
+variable "docker_password" {
+  description = "Docker Hub password or access token"
+  type        = string
+  sensitive   = true
+  
+}
+
+variable "docker_image_tag" {
+  description = "Docker image tag to deploy"
+  type        = string
+  default     = "latest"
+}
