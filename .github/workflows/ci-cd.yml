@@ -104,7 +104,7 @@ jobs:
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "$INSTANCE_ID" \
             --document-name "AWS-RunShellScript" \
-            --parameters "commands=sudo /usr/local/bin/deploy-app $IMAGE_TAG; curl --fail http://localhost/health" \
+            --parameters "commands=sudo /usr/local/bin/deploy-app $IMAGE_TAG; curl --fail --retry 12 --retry-delay 5 --retry-connrefused --retry-all-errors http://localhost/health" \
             --query 'Command.CommandId' --output text)
 
           for attempt in {1..30}; do

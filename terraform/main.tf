@@ -255,7 +255,7 @@ resource "aws_instance" "app" {
               systemctl start docker
 
               echo "${var.docker_password}" | docker login --username "${var.docker_username}" --password-stdin
-              docker network create app-network || true
+              docker network create app-network >/dev/null 2>&1 || true
 
               DB_URL="postgres://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.address}:5432/${var.db_name}"
 
