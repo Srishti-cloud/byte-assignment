@@ -13,6 +13,7 @@ This order matters because it keeps the project understandable and testable. A c
 - Node.js + Express was chosen because it is lightweight, familiar, and easy to run in containers.
 - PostgreSQL was included to reflect the expected production pattern, even in a demo-focused assignment.
 - Terraform was used to model the AWS platform resources in an infrastructure-as-code format.
+- A separate staging EC2 instance was added so image deployments are validated independently before production approval.
 - GitHub Actions was used for CI/CD because it is simple to reason about and realistic for a coding assignment.
 - AWS Systems Manager was selected for production deployment so GitHub Actions can update EC2 without storing an SSH private key.
 - Trivy was added to scan the exact Docker images published by the pipeline before deployment.

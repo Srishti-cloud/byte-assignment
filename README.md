@@ -59,6 +59,7 @@ The Terraform configuration in `terraform/` includes:
 - VPC with public and private subnets
 - Internet gateway and NAT setup
 - EC2 instance for app hosting
+- Separate staging EC2 instance for pre-production deployment validation
 - RDS PostgreSQL database
 - Security groups for the load balancer, app layer, and database
 - Application Load Balancer
@@ -74,6 +75,8 @@ terraform apply
 ```
 
 The setup is designed to follow a realistic AWS deployment pattern, with state management configured through a remote S3 backend as the expected production pattern.
+
+Terraform also provisions a separate staging EC2 instance. Its public IP is printed as `staging_public_ip`; the staging workflow deploys the commit-tagged images through SSM and runs a local health check before the production approval gate. A second EC2 instance can incur cost outside AWS Free Tier allowances.
 
 ## Deployment automation
 

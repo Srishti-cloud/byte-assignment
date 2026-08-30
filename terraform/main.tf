@@ -301,6 +301,60 @@ resource "aws_instance" "app" {
   }
 }
 
+resource "aws_instance" "staging" {
+  ami                    = var.ami_id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public[1].id
+  vpc_security_group_ids = [aws_security_group.app.id]
+  key_name               = "byte-assignment-key"
+  iam_instance_profile   = aws_iam_instance_profile.app.name
+
+  depends_on = [aws_iam_role_policy_attachment.ssm]
+
+  user_data = <<-EOT
+              #!/bin/bash
+              set -eux
+
+              yum update -y
+              yum install -y docker
+              systemctl enable docker
+              systemctl start docker
+
+              echo "${var.docker_password}" | docker login --username "${var.docker_username}" --password-stdin
+              docker network create app-network || true
+
+              cat > /usr/local/bin/deploy-app <<'DEPLOY_SCRIPT'
+              #!/bin/bash
+              set -euo pipefail
+
+              IMAGE_TAG="$${1:-latest}"
+              DOCKER_USERNAME="${var.docker_username}"
+              DB_URL="postgres://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.address}:5432/${var.db_name}"
+
+              docker network create app-network || true
+              docker pull "$${DOCKER_USERNAME}/byte-assignment-backend:$${IMAGE_TAG}"
+              docker pull "$${DOCKER_USERNAME}/byte-assignment-frontend:$${IMAGE_TAG}"
+              docker rm -f backend frontend || true
+
+              docker run -d --name backend --restart unless-stopped --network app-network \
+                -p 4000:4000 -e PORT=4000 -e NODE_ENV=production \
+                -e DATABASE_URL="$${DB_URL}" \
+                "$${DOCKER_USERNAME}/byte-assignment-backend:$${IMAGE_TAG}"
+
+              docker run -d --name frontend --restart unless-stopped --network app-network \
+                -p 80:80 "$${DOCKER_USERNAME}/byte-assignment-frontend:$${IMAGE_TAG}"
+              DEPLOY_SCRIPT
+              chmod 700 /usr/local/bin/deploy-app
+              /usr/local/bin/deploy-app "${var.docker_image_tag}"
+              EOT
+
+  tags = {
+    Name        = "${var.project_name}-staging-app"
+    Project     = var.project_name
+    Environment = "staging"
+  }
+}
+
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb"
   internal           = false

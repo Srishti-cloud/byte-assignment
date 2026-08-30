@@ -81,10 +81,36 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     steps:
-      - name: Deploy to staging
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy commit images through SSM
+        env:
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          echo "Deploying backend and frontend to staging"
-          echo "This step should run docker-compose or kubectl/ecs deploy commands in a real environment"
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=byte-assignment-staging-app" "Name=instance-state-name,Values=running" \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=sudo /usr/local/bin/deploy-app $IMAGE_TAG; curl --fail http://localhost/health" \
+            --query 'Command.CommandId' --output text)
+
+          for attempt in {1..30}; do
+            STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --query 'Status' --output text)
+            case "$STATUS" in
+              Success) break ;;
+              Failed|Cancelled|TimedOut|Cancelling) aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text; exit 1 ;;
+            esac
+            sleep 10
+          done
+
 
   production-approval:
     needs: deploy-staging
