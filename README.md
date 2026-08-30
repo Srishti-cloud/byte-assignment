@@ -111,7 +111,7 @@ The goal is to make the stack easy to observe from a production perspective by t
 - infrastructure metrics like CPU and memory
 - central log collection for app and system logs
 
-RDS automated backups are enabled with seven-day retention and a scheduled backup window. The script in `scripts/backup.sh` creates a portable PostgreSQL custom-format dump and can upload it to an S3 prefix when `S3_BACKUP_URI` is set. Restore testing should be performed against a temporary database before deleting it.
+RDS automated backups are enabled with one-day retention and a scheduled backup window to remain compatible with the current AWS Free Tier account. A paid account or production environment should increase retention to at least seven days. The script in `scripts/backup.sh` creates a portable PostgreSQL custom-format dump and can upload it to an S3 prefix when `S3_BACKUP_URI` is set. Restore testing should be performed against a temporary database before deleting it.
 
 ## Security and good practices
 
