@@ -87,6 +87,10 @@ The workflow in `.github/workflows/ci-cd.yml` is designed to handle:
 - manual approval gate for production
 - notification hook for failure scenarios
 
+The production deployment uses AWS Systems Manager to run the versioned image deployment script on the EC2 instance after the production environment approval. Configure `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` as GitHub environment secrets, with permission to discover the tagged EC2 instance and run SSM commands.
+
+The pipeline also scans both published images with Trivy and fails on unfixed high or critical vulnerabilities.
+
 This is structured as a practical starting point for a real delivery pipeline.
 
 ## Monitoring and logging
@@ -106,6 +110,8 @@ The goal is to make the stack easy to observe from a production perspective by t
 - database health and connection activity
 - infrastructure metrics like CPU and memory
 - central log collection for app and system logs
+
+RDS automated backups are enabled with seven-day retention and a scheduled backup window. The script in `scripts/backup.sh` creates a portable PostgreSQL custom-format dump and can upload it to an S3 prefix when `S3_BACKUP_URI` is set. Restore testing should be performed against a temporary database before deleting it.
 
 ## Security and good practices
 

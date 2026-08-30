@@ -14,6 +14,8 @@ This order matters because it keeps the project understandable and testable. A c
 - PostgreSQL was included to reflect the expected production pattern, even in a demo-focused assignment.
 - Terraform was used to model the AWS platform resources in an infrastructure-as-code format.
 - GitHub Actions was used for CI/CD because it is simple to reason about and realistic for a coding assignment.
+- AWS Systems Manager was selected for production deployment so GitHub Actions can update EC2 without storing an SSH private key.
+- Trivy was added to scan the exact Docker images published by the pipeline before deployment.
 - Prometheus and Grafana were used to provide a clear monitoring baseline, while Loki/Promtail was added for log collection.
 
 ## Security and operations thinking
@@ -38,7 +40,7 @@ The main challenge was balancing realism with time. It is easy to go too far int
 - full PostgreSQL integration into the app layer
 - structured logs and metrics instrumentation in the backend
 - separate environment management for dev, staging, and prod
-- replace the example staging and production workflow steps with deployment automation for the actual AWS environments
+- connect the staging job to a separate environment and add a tested restore workflow for backups
 - alerting rules and retention policies for logs and backups
 
 This keeps the project honest: it is complete as a thoughtful assignment package, but it is still intentionally designed as a strong starting point rather than a fully production-operated production system.

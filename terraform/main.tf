@@ -198,6 +198,9 @@ resource "aws_db_instance" "postgres" {
   publicly_accessible    = false
   multi_az               = true
   storage_encrypted      = true
+  backup_retention_period = 7
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "sun:04:00-sun:05:00"
   deletion_protection    = false
 
   tags = {
@@ -207,12 +210,40 @@ resource "aws_db_instance" "postgres" {
   }
 }
 
+resource "aws_iam_role" "app" {
+  name = "${var.project_name}-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.app.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "app" {
+  name = "${var.project_name}-instance-profile"
+  role = aws_iam_role.app.name
+}
+
 resource "aws_instance" "app" {
   ami                    = var.ami_id
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public[0].id
   vpc_security_group_ids = [aws_security_group.app.id]
   key_name               = "byte-assignment-key"
+  iam_instance_profile   = aws_iam_instance_profile.app.name
+
+  depends_on = [aws_iam_role_policy_attachment.ssm]
 
   user_data = <<-EOT
               #!/bin/bash
@@ -228,6 +259,17 @@ resource "aws_instance" "app" {
 
               DB_URL="postgres://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.address}:5432/${var.db_name}"
 
+              cat > /usr/local/bin/deploy-app <<'DEPLOY_SCRIPT'
+              #!/bin/bash
+              set -euo pipefail
+
+              IMAGE_TAG="$${1:-latest}"
+              DOCKER_USERNAME="${var.docker_username}"
+              DB_URL="postgres://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.address}:5432/${var.db_name}"
+
+              docker network create app-network || true
+              docker pull "$${DOCKER_USERNAME}/byte-assignment-backend:$${IMAGE_TAG}"
+              docker pull "$${DOCKER_USERNAME}/byte-assignment-frontend:$${IMAGE_TAG}"
               docker rm -f backend frontend || true
 
               docker run -d \
@@ -238,14 +280,18 @@ resource "aws_instance" "app" {
                 -e PORT=4000 \
                 -e NODE_ENV=production \
                 -e DATABASE_URL="$${DB_URL}" \
-                "${var.docker_username}/byte-assignment-backend:${var.docker_image_tag}"
+                "$${DOCKER_USERNAME}/byte-assignment-backend:$${IMAGE_TAG}"
 
               docker run -d \
                 --name frontend \
                 --restart unless-stopped \
                 --network app-network \
                 -p 80:80 \
-                "${var.docker_username}/byte-assignment-frontend:${var.docker_image_tag}"
+                "$${DOCKER_USERNAME}/byte-assignment-frontend:$${IMAGE_TAG}"
+              DEPLOY_SCRIPT
+              chmod 700 /usr/local/bin/deploy-app
+
+              /usr/local/bin/deploy-app "${var.docker_image_tag}"
               EOT
 
   tags = {
